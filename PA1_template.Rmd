@@ -5,21 +5,148 @@ output:
     keep_md: true
 ---
 
+## Assignment Instructions
 
-## Loading and preprocessing the data
-
-
-
-## What is mean total number of steps taken per day?
-
-
-
-## What is the average daily activity pattern?
-
-
-
-## Imputing missing values
+1. Code for reading in the dataset and/or processing the data  
+2. Histogram of the total number of steps taken each day  
+3. Mean and median number of steps taken each day  
+4. Time series plot of the average number of steps taken  
+5. The 5-minute interval that, on average, contains the maximum number of steps  
+6. Code to describe and show a strategy for imputing missing data  
+7. Histogram of the total number of steps taken each day after missing values are imputed  
+8. Panel plot comparing the average number of steps taken per   5-minute interval across weekdays and weekends
+9. All of the R code needed to reproduce the results (numbers, plots, etc.) in the report  
 
 
+## 1. Loading and preprocessing the data
 
-## Are there differences in activity patterns between weekdays and weekends?
+First we have to unzip the data and read it into R
+
+````{r, "Loading"}
+unzip("activity.zip")
+rawdata<-read.csv("activity.csv")
+library(ggplot2)
+head(rawdata)
+````
+
+
+## 2. Histogram of the total steps per day
+
+Now a histogram of the frequency of total steps per day is shown.
+
+````{r, "Histogramm"}
+spd<- aggregate(steps ~ date, rawdata, sum)
+g<-ggplot(spd, aes(steps))
+g+geom_histogram(boundary=0, binwidth=1250,color="#003399", fill="#00FFFF")+
+                xlab("Steps")+ ylab("Frequency") +
+                ggtitle("Histogram of total steps per day")+
+                scale_y_continuous(breaks=seq(0,14,2))
+````
+
+## 3. Mean and median number of steps taken each day  
+
+The mean and the median of the total amount of steps is calculated.
+
+````{r, "Mean and Median"}
+
+meanpd<-mean(spd$steps, na.rm = TRUE)
+medianpd<-median(spd$steps, na.rm = TRUE)
+````
+````{r}
+meanpd
+medianpd
+````
+
+## 4. Time series plot of the average number of steps taken  
+
+The average number of steps for every 5 minutes interval is shown in the following figure.
+
+````{r,}
+sti<- aggregate(steps ~ interval, rawdata, mean, na.action = na.omit)
+h<-ggplot(sti, aes(interval, steps))
+h+geom_line() + ggtitle("Average steps per time interval")+
+    xlab("Time [min]") + ylab("Steps")
+````
+
+
+## 5. The 5-minute interval that, on average, contains the maximum number of steps  
+
+Here the maximum average of steps is searched and the 5-minutes time-interval shown.
+
+````{r}
+maxint<- max(sti$steps, na.rm=TRUE)
+rownb<-subset(sti, steps==maxint)
+timeint<-rownb$interval
+timeint5<-timeint+5
+cat("The maximum average of steps is during the 5-minutes interval from",timeint, "and", timeint5, sep=" ")
+````
+
+
+## 6. Code to describe and show a strategy for imputing missing data
+
+Missing data were inputed by using the average of the days divided through the amount of 5-min intervals per day.
+
+````{r}
+alldata<-rawdata
+missing<-is.na(rawdata$steps)
+n<-sum(missing)
+cat("Missing values:", n, sep=" ")
+sumallstep<-sum(spd$steps)
+inp<-sumallstep/17658   # 17658= 61 (days)* 288 (5min intervals)
+alldata$steps[which(missing)]<-inp
+head(alldata)
+````
+
+
+## 7. Histogram of the total number of steps taken each day after missing values are imputed  
+
+Using the same code as in step 2 with "alldata" 
+
+````{r}
+spd2<- aggregate(steps ~ date, alldata, sum)
+g<-ggplot(spd2, aes(steps))
+g+geom_histogram(boundary=0, binwidth=1250,color="#336600", fill="#99FF33")+
+    xlab("Steps")+ ylab("Frequency") +
+    ggtitle("Histogram of total steps per day with missing values are inputed")+
+    scale_y_continuous(breaks=seq(0,14,2))
+meanpd2<-mean(spd2$steps, na.rm = TRUE)
+medianpd2<-median(spd2$steps, na.rm = TRUE)
+````
+````{r}
+meanpd2
+medianpd2
+````
+
+
+## 8. Panel plot comparing the average number of steps taken per   5-minute interval across weekdays and weekends
+
+Here I'm presenting two plots of the mean of steps on each interval, one for the weekends and one for the weekdays, using the "alldata2" with inputed values for the NA.
+
+````{r}
+library(ggpubr)
+
+alldata2<-alldata
+alldata2$Date <- as.Date(alldata2$date, format = "%Y-%m-%d")
+alldata2$wday <- weekdays(alldata2$Date)
+alldata2$typday <- ifelse(alldata2$wday=="Samstag" | alldata2$wday=="Sonntag", "weekend","weekday")
+head(alldata2)
+
+sweekend<-subset(alldata2, typday=="weekend")
+sweekday<-subset(alldata2, typday=="weekday")
+
+sendpi<- aggregate(steps ~ interval + typday, sweekend, mean, na.action = na.omit)
+j<-ggplot(sendpi, aes(interval, steps), col=typday)
+j2<-j+geom_line() + ggtitle("Weekend")+
+    xlab("Time [min]")+ ylab("Steps")
+
+sdaypi<- aggregate(steps ~ interval+typday, sweekday, mean, na.action = na.omit)
+k<-ggplot(sdaypi, aes(interval, steps))
+k2<-k+geom_line() + ggtitle("Weekday")+
+    xlab("Time [min]")+ylab("Steps")
+
+figure<-ggarrange(j2, k2, ncol=1, nrow=2)
+figure
+````
+
+
+
